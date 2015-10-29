@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "declaration": true,
+    "noImplicitAny": true,
+    "noEmitOnError": true,
+    "sourceMap": true,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES5",
+    "outDir": "../build"
+  },
+  "files": [
+    "../../typings/es6-collections.d.ts",
+    "../../typings/es6-promise.d.ts",
+    "../../typings/systemjs.d.ts",
+    "../../typings/expect.js/expect.js.d.ts",
+    "../../typings/mocha/mocha.d.ts",
+    "index.ts"
+  ]
+}

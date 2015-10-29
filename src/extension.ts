@@ -138,7 +138,69 @@ interface IExtension<T> {
 /**
  * Implementation of an Extension Point.
  */
+export
 class ExtensionPoint implements IDisposable {
+
+  /**
+   * Validate an options object for consistency with IExtensionPointJSON.
+   */
+  static validate(name: string, options: IExtensionPointJSON, promises: any[]): boolean {
+    if (!(options.hasOwnProperty('id') || options.id)) {
+      throw new Error("Plugins: extension point requires `id`");
+    }
+    if (typeof options.id !== "string") {
+      throw new Error("Plugins: extension point `id` must be string");
+    }
+
+    if (!(options.hasOwnProperty('receiver') || options.receiver)) {
+      return false;
+    }
+    if (typeof options.receiver !== "string") {
+      return false;
+    }
+
+    if (options.hasOwnProperty('module') || options.module) {
+      if (typeof options.module !== "string") {
+        return false;
+      }
+    }
+    var mod = options.module || name;
+
+    if (options.hasOwnProperty('initializer') || options.initializer) {
+      if (typeof options.initializer !== "string") {
+        return false;
+      }
+
+      promises.push(System.import(mod)
+        .then(mod => {
+          var init = mod[options.initializer];
+          if (!(typeof init === 'function')) { throw ""; }
+        })
+        .catch((error: any) => {
+          throw new Error(mod + "Extension point failure, initializer not callable");
+        })
+      );
+
+    }
+
+    promises.push(System.import(mod)
+      .then(mod => {
+        var receiver = mod[options.receiver];
+        if (!(typeof receiver === 'function')) { throw ""; }
+      })
+      .catch((error: any) => {
+        throw new Error(mod + ": Extension point failure, receiver not callable.");
+      })
+    );
+
+    var fields = ['id', 'receiver', 'module', 'initializer'];
+    for (var item in options) {
+      if (fields.indexOf(item) < 0) {
+        return false;
+      }
+    }
+
+  }
 
   /**
    * Construct a new extension point.
@@ -208,7 +270,7 @@ class ExtensionPoint implements IDisposable {
   }
 
   /**
-   * Finish connecting and extension to the extension point.
+   * Finish connecting an extension to the extension point.
    */
   private _connectExtension(extension: Extension): Promise<void> {
     var receiver = this._receiverFunc;
@@ -234,7 +296,51 @@ class ExtensionPoint implements IDisposable {
 /**
  * Implementation of an Extension.
  */
+export
 class Extension implements IDisposable {
+
+  /**
+   * Validate an options object for consistency with IExtensionJSON.
+   */
+  static validate(options: IExtensionJSON): boolean {
+    if (!(options.hasOwnProperty('point') || options.point)) {
+      return false;
+    }
+    if (typeof options.point !== "string") {
+      return false;
+    }
+
+    if (options.hasOwnProperty('loader') || options.loader) {
+      if (typeof options.loader !== "string") {
+        return false;
+      }
+    }
+
+    if (options.hasOwnProperty('data') || options.data) {
+      if (typeof options.data !== "string") {
+        return false;
+      }
+    }
+
+    if (options.hasOwnProperty('module') || options.module) {
+      if (typeof options.module !== "string") {
+        return false;
+      }
+    }
+
+    if (options.hasOwnProperty('initializer') || options.initializer) {
+      if (typeof options.initializer !== "string") {
+        return false;
+      }
+    }
+
+    var fields = ['point', 'loader', 'config', 'module', 'data', 'initializer'];
+    for (var item in options) {
+      if (fields.indexOf(item) < 0) {
+        return false;
+      }
+    }
+  }
 
   /**
    * Construct a new Extension.

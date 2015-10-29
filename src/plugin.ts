@@ -12,7 +12,8 @@ import {
 } from 'phosphor-disposable';
 
 import { 
-  IExtensionJSON, IExtensionPointJSON, loadExtension, loadExtensionPoint
+  IExtensionJSON, IExtensionPointJSON, loadExtension, loadExtensionPoint,
+  Extension, ExtensionPoint
 } from './extension';
 
 
@@ -25,7 +26,7 @@ interface IPluginJSON {
    *
    * If not given, it will default to the top-level `package.json` main.
    */
-  module?: string;
+  main?: string;
 
   /**
    * The name of the initialization function in the plugin `main` module.
@@ -54,13 +55,91 @@ interface IPluginJSON {
 /**
  * Implementation of a Plugin.
  */
+export
 class Plugin implements IDisposable {
+
+  /**
+   * Validate an options object for consistency with IPluginJSON,
+   * including sub-objects.
+   */
+  static validate(name: string, options: any): Promise<any[]> {
+    // See if a main module is defined.
+    // If it is, ensure it exists.
+    var mainMod: string = '';
+    var valPromises: any[] = [];
+
+    if (options.hasOwnProperty('main') || options.main) {
+      // Explicit typecheck because some people won't be using
+      // TypeScript
+      if (typeof options.main !== "string") {
+        throw new Error(mainMod + ": `main` module must be a string.")
+      }
+
+      mainMod = name + '/' + options.main;
+
+      // Simple check to ensure we can load the main module.
+      valPromises.push(System.import(mainMod)
+        .then(() => void 0)
+        .catch((error: any) => {
+          throw new Error(mainMod + ": Problem loading main module.");
+        })
+      );
+    }
+
+    // If an initializer is set for the plugin, ensure it exists.
+    if (options.hasOwnProperty('initializer') || options.initializer) {
+      if (typeof options['initializer'] !== "string") {
+        throw new Error(mainMod + ": `Initializer` must be a string");
+      }
+
+      // Check that the initializer can be found in the main module.
+      valPromises.push(System.import(mainMod)
+        .then(mod => {
+          var init = mod[options.initializer];
+          if (!(typeof init === 'function')) { throw ""; }
+        })
+        .catch((error: any) => {
+          throw new Error(mainMod + ": `initializer` set but not callable.")
+        })
+      );
+    }
+
+    // Iterate over all defined extension points and 
+    //
+    if (options.hasOwnProperty('extensionPoints') || options.extensionPoints) {
+      if (!Array.isArray(options.extensionPoints)) {
+        throw new Error("Phosphide: Extension points must be an array.");
+      }
+      for (var i = 0; i < options.extensionPoints.length; ++i) {
+        ExtensionPoint.validate(mainMod, options.extensionPoints[i], valPromises);
+      }
+    }
+
+    // Iterate over all defined extensions and validate.
+    if (options.hasOwnProperty('extensions') || options.extensions) {
+      if(!Array.isArray(options.extensions)) {
+        throw new Error(mainMod + ": `extensions` must be an array.");
+      }
+      for (var i = 0; i < options.extensions.length; ++i) {
+        Extension.validate(options.extensions[i])
+      }
+    }
+
+    var fields = ['main', 'initializer', 'extensionPoints', 'extensions'];
+    for (var item in options) {
+      if (fields.indexOf(item) < 0) {
+        throw new Error(mainMod + ": field not supported - " + item);
+      }
+    }
+
+    return Promise.all(valPromises);
+  }
 
   /**
    * Construct a new plugin.
    */
   constructor(name: string, options: IPluginJSON) {
-    this._module = name + '/' + options.module;
+    this._module = name + '/' + options.main;
     this._name = name;
     this._initializer = options.initializer;
     if (options.extensionPoints) {
@@ -110,7 +189,7 @@ class Plugin implements IDisposable {
    * Load an extension point.
    */
   private _loadExtensionPoint(point: IExtensionPointJSON): Promise<void> {
-     if (point.hasOwnProperty('module') || (point.module)) {
+    if (point.hasOwnProperty('module') || (point.module)) {
       point.module = this._name + '/' + point.module;
     } else {
       point.module = this._module;
@@ -277,8 +356,13 @@ function loadPackage(name: string): Promise<void> {
 function addPackage(name: string, config: any) {
   if (config.hasOwnProperty('phosphide')) {
     var pconfig = config.phosphide as IPluginJSON;
-    pconfig.module = pconfig.module || config.main;
-    availablePlugins.set(name, new Plugin(name, pconfig));
+
+    Plugin.validate(name, pconfig).then(() => {
+      pconfig.main = pconfig.main || config.main;
+      availablePlugins.set(name, new Plugin(name, pconfig));
+    }).catch((error:any) => { console.error(error); });
+  } else {
+    throw new Error('Phosphide details not found in package.json: ' + name);
   }
 }
 
