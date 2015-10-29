@@ -1,0 +1,7 @@
+{
+  "browsers": ["firefox"],
+  "coverage": {
+    "dir": "coverage/",
+    "reporters": ["text", "html"]
+  }
+}
