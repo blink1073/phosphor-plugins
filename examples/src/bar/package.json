@@ -8,6 +8,11 @@
         "main": "index.js",
         "id": "my-bar:bar-point",
         "factory": "createBarReceiver"
+      },
+      {
+        "main": "index.js",
+        "id": "my-bar:css",
+        "factory": "createCSSReceiver"
       }
     ],
     "extensions": [
@@ -25,6 +30,11 @@
         "id": "my-bar:bar-ext-1",
         "point": "my-bar:bar-point",
         "data": "data.json"
+      },
+      {
+        "id": "my-bar:bar-ext-2",
+        "point": "my-bar:css",
+        "config": { "path": "bar/index.css" }
       }
     ]
   }
