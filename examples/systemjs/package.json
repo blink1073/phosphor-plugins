@@ -1,7 +1,6 @@
 {
   "private": true,
   "dependencies": {
-    "foo": "^0.1.0",
     "phosphor-disposable": "^1.0.5",
     "system-css": "^0.1.0",
     "systemjs": "^0.19.6",
